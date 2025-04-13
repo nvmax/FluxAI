@@ -90,6 +90,9 @@ class SetupUI:
         self.harmful_threshold = tk.StringVar(value="0.9")
         self.sexual_threshold = tk.StringVar(value="0.9")
         self.child_threshold = tk.StringVar(value="0.1")
+        self.hate_threshold = tk.StringVar(value="0.7")
+        self.violence_threshold = tk.StringVar(value="0.8")
+        self.allow_adult_content = tk.BooleanVar(value=True)
 
         # Warning and Ban Variables
         self.max_warnings = tk.StringVar(value="3")
@@ -791,6 +794,15 @@ class SetupUI:
             if 'CONTENT_FILTER_CHILD_THRESHOLD' in env_vars:
                 self.child_threshold.set(env_vars['CONTENT_FILTER_CHILD_THRESHOLD'])
 
+            if 'CONTENT_FILTER_HATE_THRESHOLD' in env_vars:
+                self.hate_threshold.set(env_vars['CONTENT_FILTER_HATE_THRESHOLD'])
+
+            if 'CONTENT_FILTER_VIOLENCE_THRESHOLD' in env_vars:
+                self.violence_threshold.set(env_vars['CONTENT_FILTER_VIOLENCE_THRESHOLD'])
+
+            if 'CONTENT_FILTER_ALLOW_ADULT' in env_vars:
+                self.allow_adult_content.set(env_vars['CONTENT_FILTER_ALLOW_ADULT'].lower() == 'true')
+
             # Warning and Ban Settings
             if 'MAX_WARNINGS' in env_vars:
                 self.max_warnings.set(env_vars['MAX_WARNINGS'])
@@ -845,8 +857,7 @@ class SetupUI:
         # Description
         description = (
             "These settings control how sensitive the content filter is. Higher values mean less filtering (fewer false positives),\n"
-            "while lower values mean more filtering (more false positives). Values should be between 0.1 and 1.0.\n\n"
-            "Setting a value to 1.0 effectively disables that type of filtering."
+            "while lower values mean more filtering (more false positives).\n\n"
         )
         desc_label = ttk.Label(main_frame, text=description, wraplength=600, justify="left")
         desc_label.grid(row=current_row, column=0, columnspan=2, padx=5, pady=5, sticky="nw")
@@ -858,76 +869,82 @@ class SetupUI:
         threshold_frame.grid_columnconfigure(1, weight=1)
         current_row += 1
 
-        # Create dropdown options
-        threshold_options = [
-            ("0.1", "Low (Very Strict)"),
-            ("0.3", "Low-Moderate"),
-            ("0.5", "Moderate"),
-            ("0.7", "Moderate-High"),
-            ("0.9", "High (Less Strict)"),
-            ("0.95", "Very High (Few False Positives)"),
-            ("1.0", "Off (No Filtering)")
-        ]
+        # Function to validate threshold input (0.01 to 1.00)
+        def validate_threshold(P):
+            if P == "":
+                return True
+            try:
+                value = float(P)
+                return 0.01 <= value <= 1.00
+            except ValueError:
+                return False
 
-        # Function to create formatted dropdown options
-        def get_formatted_options():
-            return [f"{value} - {desc}" for value, desc in threshold_options]
-
-        # Function to extract value from formatted option
-        def get_value_from_option(option):
-            return option.split(" - ")[0]
-
-        # Function to set the initial dropdown value based on the StringVar
-        def set_initial_dropdown_value(dropdown, string_var):
-            value = string_var.get()
-            for i, (opt_value, _) in enumerate(threshold_options):
-                if opt_value == value:
-                    dropdown.current(i)
-                    break
+        # Register validation command
+        validate_cmd = self.root.register(validate_threshold)
 
         # Toxic content threshold
-        ttk.Label(threshold_frame, text="Toxic Content Threshold:", anchor="e").grid(row=0, column=0, padx=5, pady=5, sticky="e")
-        toxic_dropdown = ttk.Combobox(threshold_frame, values=get_formatted_options(), state="readonly")
-        toxic_dropdown.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-        set_initial_dropdown_value(toxic_dropdown, self.toxic_threshold)
-        toxic_dropdown.bind("<<ComboboxSelected>>", lambda e: self.toxic_threshold.set(get_value_from_option(toxic_dropdown.get())))
+        ttk.Label(threshold_frame, text="Toxic Content Threshold:", anchor="e").grid(row=0, column=0, padx=5, pady=2, sticky="e")
+        toxic_entry = ttk.Entry(threshold_frame, textvariable=self.toxic_threshold, width=10, validate="key", validatecommand=(validate_cmd, '%P'))
+        toxic_entry.grid(row=0, column=1, padx=5, pady=2, sticky="w")
 
         # Add a description of what this threshold controls
-        ttk.Label(threshold_frame, text="Controls filtering for toxic, offensive, or harmful language",
-                 font=("TkDefaultFont", 8), foreground="gray").grid(row=1, column=0, columnspan=2, padx=5, pady=(0, 10), sticky="w")
+        ttk.Label(threshold_frame, text="Controls filtering for toxic, offensive, or harmful language (0.01-1.00)",
+                 font=("TkDefaultFont", 8), foreground="gray").grid(row=1, column=0, columnspan=2, padx=5, pady=(0, 2), sticky="w")
 
         # Harmful content threshold
-        ttk.Label(threshold_frame, text="Harmful Content Threshold:", anchor="e").grid(row=2, column=0, padx=5, pady=5, sticky="e")
-        harmful_dropdown = ttk.Combobox(threshold_frame, values=get_formatted_options(), state="readonly")
-        harmful_dropdown.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
-        set_initial_dropdown_value(harmful_dropdown, self.harmful_threshold)
-        harmful_dropdown.bind("<<ComboboxSelected>>", lambda e: self.harmful_threshold.set(get_value_from_option(harmful_dropdown.get())))
+        ttk.Label(threshold_frame, text="Harmful Content Threshold:", anchor="e").grid(row=2, column=0, padx=5, pady=2, sticky="e")
+        harmful_entry = ttk.Entry(threshold_frame, textvariable=self.harmful_threshold, width=10, validate="key", validatecommand=(validate_cmd, '%P'))
+        harmful_entry.grid(row=2, column=1, padx=5, pady=2, sticky="w")
 
         # Add a description
-        ttk.Label(threshold_frame, text="Controls filtering for obscene, threatening, or identity-based harmful content",
-                 font=("TkDefaultFont", 8), foreground="gray").grid(row=3, column=0, columnspan=2, padx=5, pady=(0, 10), sticky="w")
+        ttk.Label(threshold_frame, text="Controls filtering for obscene, threatening, or identity-based harmful content (0.01-1.00)",
+                 font=("TkDefaultFont", 8), foreground="gray").grid(row=3, column=0, columnspan=2, padx=5, pady=(0, 2), sticky="w")
 
         # Sexual content threshold
-        ttk.Label(threshold_frame, text="Sexual Content Threshold:", anchor="e").grid(row=4, column=0, padx=5, pady=5, sticky="e")
-        sexual_dropdown = ttk.Combobox(threshold_frame, values=get_formatted_options(), state="readonly")
-        sexual_dropdown.grid(row=4, column=1, padx=5, pady=5, sticky="ew")
-        set_initial_dropdown_value(sexual_dropdown, self.sexual_threshold)
-        sexual_dropdown.bind("<<ComboboxSelected>>", lambda e: self.sexual_threshold.set(get_value_from_option(sexual_dropdown.get())))
+        ttk.Label(threshold_frame, text="Sexual Content Threshold:", anchor="e").grid(row=4, column=0, padx=5, pady=2, sticky="e")
+        sexual_entry = ttk.Entry(threshold_frame, textvariable=self.sexual_threshold, width=10, validate="key", validatecommand=(validate_cmd, '%P'))
+        sexual_entry.grid(row=4, column=1, padx=5, pady=2, sticky="w")
 
         # Add a description
-        ttk.Label(threshold_frame, text="Controls filtering for sexual or adult content",
-                 font=("TkDefaultFont", 8), foreground="gray").grid(row=5, column=0, columnspan=2, padx=5, pady=(0, 10), sticky="w")
+        ttk.Label(threshold_frame, text="Controls filtering for sexual or adult content (0.01-1.00)",
+                 font=("TkDefaultFont", 8), foreground="gray").grid(row=5, column=0, columnspan=2, padx=5, pady=(0, 2), sticky="w")
 
         # Child content threshold
-        ttk.Label(threshold_frame, text="Child Content Threshold:", anchor="e").grid(row=6, column=0, padx=5, pady=5, sticky="e")
-        child_dropdown = ttk.Combobox(threshold_frame, values=get_formatted_options(), state="readonly")
-        child_dropdown.grid(row=6, column=1, padx=5, pady=5, sticky="ew")
-        set_initial_dropdown_value(child_dropdown, self.child_threshold)
-        child_dropdown.bind("<<ComboboxSelected>>", lambda e: self.child_threshold.set(get_value_from_option(child_dropdown.get())))
+        ttk.Label(threshold_frame, text="Child Content Threshold:", anchor="e").grid(row=6, column=0, padx=5, pady=2, sticky="e")
+        child_entry = ttk.Entry(threshold_frame, textvariable=self.child_threshold, width=10, validate="key", validatecommand=(validate_cmd, '%P'))
+        child_entry.grid(row=6, column=1, padx=5, pady=2, sticky="w")
 
         # Add a description
-        ttk.Label(threshold_frame, text="Controls filtering for child-related inappropriate content (strictest filter)",
-                 font=("TkDefaultFont", 8), foreground="gray").grid(row=7, column=0, columnspan=2, padx=5, pady=(0, 10), sticky="w")
+        ttk.Label(threshold_frame, text="Controls filtering for child-related inappropriate content (0.01-1.00, strictest filter)",
+                 font=("TkDefaultFont", 8), foreground="gray").grid(row=7, column=0, columnspan=2, padx=5, pady=(0, 2), sticky="w")
+
+        # Hate speech threshold
+        ttk.Label(threshold_frame, text="Hate Speech Threshold:", anchor="e").grid(row=8, column=0, padx=5, pady=2, sticky="e")
+        hate_entry = ttk.Entry(threshold_frame, textvariable=self.hate_threshold, width=10, validate="key", validatecommand=(validate_cmd, '%P'))
+        hate_entry.grid(row=8, column=1, padx=5, pady=2, sticky="w")
+
+        # Add a description
+        ttk.Label(threshold_frame, text="Controls filtering for hate speech and discriminatory content (0.01-1.00)",
+                 font=("TkDefaultFont", 8), foreground="gray").grid(row=9, column=0, columnspan=2, padx=5, pady=(0, 2), sticky="w")
+
+        # Violence threshold
+        ttk.Label(threshold_frame, text="Violence Threshold:", anchor="e").grid(row=10, column=0, padx=5, pady=2, sticky="e")
+        violence_entry = ttk.Entry(threshold_frame, textvariable=self.violence_threshold, width=10, validate="key", validatecommand=(validate_cmd, '%P'))
+        violence_entry.grid(row=10, column=1, padx=5, pady=2, sticky="w")
+
+        # Add a description
+        ttk.Label(threshold_frame, text="Controls filtering for violent and graphic content (0.01-1.00)",
+                 font=("TkDefaultFont", 8), foreground="gray").grid(row=11, column=0, columnspan=2, padx=5, pady=(0, 2), sticky="w")
+
+        # Add checkbox for allowing adult content (moved to the bottom)
+        ttk.Label(threshold_frame, text="Adult Content:", anchor="e").grid(row=12, column=0, padx=5, pady=2, sticky="e")
+        ttk.Checkbutton(threshold_frame, text="Allow adult content (while still blocking child-related inappropriate content)",
+                       variable=self.allow_adult_content).grid(row=12, column=1, padx=5, pady=2, sticky="w")
+
+        # Add a description
+        ttk.Label(threshold_frame, text="When enabled, adult content is allowed but child-related inappropriate content is still blocked. "
+                 "This setting works in conjunction with the Sexual Content Threshold above.",
+                 font=("TkDefaultFont", 8), foreground="gray").grid(row=13, column=0, columnspan=2, padx=5, pady=(0, 5), sticky="w")
 
         # Create a frame for warning and ban settings
         warning_frame = ttk.LabelFrame(main_frame, text="Warning and Ban Settings", padding=10)
@@ -993,6 +1010,9 @@ class SetupUI:
             env_vars['CONTENT_FILTER_HARMFUL_THRESHOLD'] = self.harmful_threshold.get()
             env_vars['CONTENT_FILTER_SEXUAL_THRESHOLD'] = self.sexual_threshold.get()
             env_vars['CONTENT_FILTER_CHILD_THRESHOLD'] = self.child_threshold.get()
+            env_vars['CONTENT_FILTER_HATE_THRESHOLD'] = self.hate_threshold.get()
+            env_vars['CONTENT_FILTER_VIOLENCE_THRESHOLD'] = self.violence_threshold.get()
+            env_vars['CONTENT_FILTER_ALLOW_ADULT'] = str(self.allow_adult_content.get()).lower()
 
             # Save warning and ban settings
             env_vars['MAX_WARNINGS'] = self.max_warnings.get()

@@ -12,7 +12,9 @@ from typing import Dict, Any, List, Optional, Tuple, Set
 from src.domain.events.event_bus import EventBus
 from src.domain.events.common_events import ContentFilterViolationEvent
 from src.infrastructure.database.database_service import DatabaseService
+# Import both the original and enhanced transformer filters
 from src.application.content_filter.transformer_content_filter import TransformerContentFilter
+from src.application.content_filter.enhanced_transformer_filter import EnhancedTransformerFilter
 
 logger = logging.getLogger(__name__)
 
@@ -63,10 +65,18 @@ class ContentFilterService:
         # Ensure the content_filter directory exists
         os.makedirs(os.path.dirname(self.banned_words_backup_path), exist_ok=True)
 
-        # Initialize the transformer-based content filter
-        logger.info("Initializing transformer-based content filter (will download model if needed)...")
-        self.transformer_filter = TransformerContentFilter()
-        logger.info("Transformer-based content filter initialized successfully")
+        # Initialize the enhanced transformer-based content filter
+        logger.info("Initializing enhanced transformer-based content filter (will download models if needed)...")
+        try:
+            # Try to use the enhanced filter first
+            self.transformer_filter = EnhancedTransformerFilter()
+            logger.info("Enhanced transformer-based content filter initialized successfully")
+        except Exception as e:
+            # Fall back to the original filter if there's an issue
+            logger.warning(f"Failed to initialize enhanced transformer filter: {e}")
+            logger.info("Falling back to original transformer filter...")
+            self.transformer_filter = TransformerContentFilter()
+            logger.info("Original transformer-based content filter initialized successfully")
 
         self._initialized = True
 
