@@ -207,47 +207,76 @@ class UpdateDialog(tk.Toplevel):
 
     def _update_progress(self, progress: float):
         """Update the progress bar"""
-        # Update progress bar (0-100)
-        self.progress_var.set(progress * 100)
+        # Check if the dialog still exists
+        try:
+            # Check if the window still exists
+            self.winfo_exists()
+        except tk.TclError:
+            logger.warning("Update dialog was closed during download")
+            return
 
-        # Update status text
-        percent = int(progress * 100)
-        self.status_var.set(f"Downloading... {percent}%")
+        try:
+            # Update progress bar (0-100)
+            self.progress_var.set(progress * 100)
 
-        # Update the UI
-        self.update_idletasks()
+            # Update status text
+            percent = int(progress * 100)
+            self.status_var.set(f"Downloading... {percent}%")
+
+            # Update the UI
+            self.update_idletasks()
+        except tk.TclError as e:
+            logger.error(f"Error updating progress: {e}")
 
     def _download_complete(self, file_path: Optional[str]):
         """Handle download completion"""
         self.downloading = False
 
+        # Check if the dialog still exists
+        try:
+            # Check if the window still exists
+            self.winfo_exists()
+        except tk.TclError:
+            logger.warning("Update dialog was closed before download completed")
+            return
+
         if file_path:
             # Download succeeded
-            self.progress_var.set(100)
-            self.status_var.set(f"Download complete: {os.path.basename(file_path)}")
+            try:
+                self.progress_var.set(100)
+                self.status_var.set(f"Download complete: {os.path.basename(file_path)}")
 
-            # Enable close button
-            self.close_button.config(state=tk.NORMAL)
+                # Enable close button if it still exists
+                if hasattr(self, 'close_button') and self.close_button.winfo_exists():
+                    self.close_button.config(state=tk.NORMAL)
 
-            # Change download button to "Open Folder"
-            self.download_button.config(text="Open Folder", state=tk.NORMAL,
-                                     command=lambda: os.startfile(os.path.dirname(file_path)))
+                # Change download button to "Open Folder" if it still exists
+                if hasattr(self, 'download_button') and self.download_button.winfo_exists():
+                    self.download_button.config(text="Open Folder", state=tk.NORMAL,
+                                             command=lambda: os.startfile(os.path.dirname(file_path)))
 
-            # Show success message
-            messagebox.showinfo("Download Complete",
-                              f"Successfully downloaded {os.path.basename(file_path)}")
+                # Show success message
+                messagebox.showinfo("Download Complete",
+                                  f"Successfully downloaded {os.path.basename(file_path)}")
+            except tk.TclError as e:
+                logger.error(f"Error updating UI after download: {e}")
         else:
             # Download failed
-            self.progress_var.set(0)
-            self.status_var.set("Download failed")
+            try:
+                self.progress_var.set(0)
+                self.status_var.set("Download failed")
 
-            # Re-enable buttons
-            self.download_button.config(state=tk.NORMAL)
-            self.close_button.config(state=tk.NORMAL)
+                # Re-enable buttons if they still exist
+                if hasattr(self, 'download_button') and self.download_button.winfo_exists():
+                    self.download_button.config(state=tk.NORMAL)
+                if hasattr(self, 'close_button') and self.close_button.winfo_exists():
+                    self.close_button.config(state=tk.NORMAL)
 
-            # Show error message
-            messagebox.showerror("Download Failed",
-                               "Failed to download the update. Please try again or use the browser option.")
+                # Show error message
+                messagebox.showerror("Download Failed",
+                                   "Failed to download the update. Please try again or use the browser option.")
+            except tk.TclError as e:
+                logger.error(f"Error updating UI after failed download: {e}")
 
     def _insert_html_content(self, text_widget, html_content):
         """Process HTML content and insert it into the text widget with proper formatting"""
