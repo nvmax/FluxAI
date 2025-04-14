@@ -49,6 +49,8 @@ class AIService:
             self._init_openai()
         elif self.ai_provider == 'xai':
             self._init_xai()
+        elif self.ai_provider == 'lmstudio':
+            self._init_lmstudio()
         else:
             logger.warning(f"Unknown AI provider: {self.ai_provider}. Defaulting to Gemini.")
             self.ai_provider = 'gemini'
@@ -94,6 +96,19 @@ class AIService:
         self.xai_model = self.config.get('xai_model', 'grok-beta')
         logger.info(f"XAI API initialized with model: {self.xai_model}")
 
+    def _init_lmstudio(self):
+        """Initialize LMStudio API"""
+        # Get LMStudio configuration from environment variables
+        import os
+        self.lmstudio_host = os.getenv('LMSTUDIO_HOST', '127.0.0.1')
+        self.lmstudio_port = os.getenv('LMSTUDIO_PORT', '1234')
+
+        # Store in config for reference
+        self.config['lmstudio_host'] = self.lmstudio_host
+        self.config['lmstudio_port'] = self.lmstudio_port
+
+        logger.info(f"LMStudio API initialized with host: {self.lmstudio_host}, port: {self.lmstudio_port}")
+
     async def enhance_prompt(self, prompt: str, enhancement_level: int = 1) -> str:
         """
         Enhance a prompt using AI.
@@ -131,6 +146,8 @@ class AIService:
                 return await self._enhance_with_openai(prompt, system_prompt)
             elif self.ai_provider == 'xai':
                 return await self._enhance_with_xai(prompt, system_prompt)
+            elif self.ai_provider == 'lmstudio':
+                return await self._enhance_with_lmstudio(prompt, system_prompt)
             else:
                 logger.warning(f"Unknown AI provider: {self.ai_provider}. Returning original prompt.")
                 return prompt
@@ -292,4 +309,62 @@ class AIService:
 
         except Exception as e:
             logger.error(f"Error enhancing prompt with XAI: {str(e)}", exc_info=True)
+            return prompt
+
+    async def _enhance_with_lmstudio(self, prompt: str, system_prompt: str) -> str:
+        """
+        Enhance a prompt using LMStudio.
+
+        Args:
+            prompt: The original prompt
+            system_prompt: The system prompt
+
+        Returns:
+            Enhanced prompt
+        """
+        try:
+            # Get the LMStudio provider from the factory
+            lmstudio_provider = AIProviderFactory.get_provider('lmstudio')
+            if not lmstudio_provider:
+                logger.error("Failed to get LMStudio provider")
+                return prompt
+
+            # Extract enhancement level from system prompt
+            enhancement_level = 1  # Default to no enhancement
+
+            # Get enhancement level if available
+            if "enhancement_level" in self.__dict__:
+                enhancement_level = self.__dict__["enhancement_level"]
+
+            # Map enhancement level directly to temperature
+            # This ensures each level gets the exact temperature needed for the corresponding system prompt
+            if enhancement_level == 1:
+                # Level 1: No enhancement - return original prompt
+                logger.warning("Enhancement level 1 reached _enhance_with_lmstudio, which should not happen")
+                return prompt
+            elif enhancement_level <= 3:
+                temperature = 0.3  # Levels 2-3: Minimal to light enhancements
+            elif enhancement_level <= 6:
+                temperature = 0.6  # Levels 4-6: Moderate to notable enhancements
+            elif enhancement_level <= 8:
+                temperature = 0.8  # Levels 7-8: Significant to extensive enhancements
+            else:  # enhancement_level 9-10
+                temperature = 1.0  # Levels 9-10: Substantial to maximum enhancements
+
+            # Test the connection to LMStudio before proceeding
+            connection_test = await lmstudio_provider.test_connection()
+            if not connection_test:
+                logger.error(f"Failed to connect to LMStudio at {self.lmstudio_host}:{self.lmstudio_port}")
+                logger.warning("Falling back to original prompt due to connection failure")
+                return prompt
+
+            # Generate the enhanced prompt using the LMStudio provider
+            # We pass the system_prompt through the provider's own method
+            enhanced_prompt = await lmstudio_provider.generate_response(prompt, temperature)
+
+            logger.info(f"Enhanced prompt with LMStudio: {enhanced_prompt}")
+            return enhanced_prompt
+
+        except Exception as e:
+            logger.error(f"Error enhancing prompt with LMStudio: {str(e)}", exc_info=True)
             return prompt
