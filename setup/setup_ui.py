@@ -911,7 +911,29 @@ class SetupUI:
 
         # Child content threshold
         ttk.Label(threshold_frame, text="Child Content Threshold:", anchor="e").grid(row=6, column=0, padx=5, pady=2, sticky="e")
-        child_entry = ttk.Entry(threshold_frame, textvariable=self.child_threshold, width=10, validate="key", validatecommand=(validate_cmd, '%P'))
+
+        # Create a validation function specifically for child threshold
+        def validate_child_threshold(new_value):
+            # First validate that it's a valid threshold value
+            if not validate_threshold(new_value):
+                return False
+
+            # If it's valid, check if it's above 0.1
+            try:
+                value = float(new_value)
+                if value > 0.1:
+                    # Schedule the warning to appear after the entry is updated
+                    # This avoids validation issues
+                    self.root.after(100, lambda: self.show_child_threshold_warning(value))
+                return True
+            except ValueError:
+                return True  # Let the general validator handle this
+
+        # Register the child threshold validation command
+        validate_child_cmd = self.root.register(validate_child_threshold)
+
+        child_entry = ttk.Entry(threshold_frame, textvariable=self.child_threshold, width=10,
+                               validate="focusout", validatecommand=(validate_child_cmd, '%P'))
         child_entry.grid(row=6, column=1, padx=5, pady=2, sticky="w")
 
         # Add a description
@@ -1003,6 +1025,16 @@ class SetupUI:
     def save_content_configuration(self):
         """Save content filter configuration to .env file"""
         try:
+            # Check child threshold value before saving
+            try:
+                child_threshold_value = float(self.child_threshold.get())
+                if child_threshold_value > 0.1:
+                    # Show warning again when saving
+                    self.show_child_threshold_warning(child_threshold_value)
+            except ValueError:
+                # If conversion fails, continue with saving
+                pass
+
             env_vars = self.setup_manager.load_env()
 
             # Save content filter thresholds
@@ -1109,6 +1141,20 @@ class SetupUI:
                             widget.configure(state='normal')
                 elif isinstance(child, (ttk.Entry, ttk.Button, ttk.Combobox)):
                     child.configure(state='normal')
+
+    def show_child_threshold_warning(self, value):
+        """Show a warning when child content threshold is set above 0.1"""
+        warning_message = (
+            "WARNING: Setting the child content threshold above 0.1 significantly reduces security."
+            "\n\nHigher values make the filter less sensitive to potentially inappropriate content."
+            "\n\nThe recommended value is 0.1 or lower for maximum protection."
+            "\n\nAre you sure you want to continue with this setting?"
+        )
+
+        # Show a warning dialog with Yes/No options
+        if not messagebox.askyesno("Security Warning", warning_message, icon="warning"):
+            # If user selects "No", reset to the recommended value
+            self.child_threshold.set("0.1")
 
     def on_checkpoint_selected(self, event=None):
         """Handle workflow selection"""
