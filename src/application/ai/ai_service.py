@@ -94,7 +94,7 @@ class AIService:
         self.xai_model = self.config.get('xai_model', 'grok-beta')
         logger.info(f"XAI API initialized with model: {self.xai_model}")
 
-    async def enhance_prompt(self, prompt: str, enhancement_level: int = 5) -> str:
+    async def enhance_prompt(self, prompt: str, enhancement_level: int = 1) -> str:
         """
         Enhance a prompt using AI.
 
@@ -112,6 +112,14 @@ class AIService:
         try:
             # Normalize enhancement level
             enhancement_level = max(1, min(10, enhancement_level))
+
+            # For level 1, return the original prompt without any enhancement
+            if enhancement_level == 1:
+                logger.info("Enhancement level 1: Using original prompt without enhancement")
+                return prompt
+
+            # Store enhancement level for use in provider-specific methods
+            self.__dict__["enhancement_level"] = enhancement_level
 
             # Create system prompt based on enhancement level
             system_prompt = self._create_system_prompt(enhancement_level)
@@ -240,9 +248,39 @@ class AIService:
                 logger.error("Failed to get XAI provider")
                 return prompt
 
-            # Use the provider to generate a response
-            # Map enhancement level to temperature (0.1-1.0)
-            temperature = 0.7  # Default to moderate creativity
+            # Extract enhancement level from system prompt
+            enhancement_level = 1  # Default to no enhancement
+
+            # Get enhancement level if available
+            if "enhancement_level" in self.__dict__:
+                enhancement_level = self.__dict__["enhancement_level"]
+
+            # Map enhancement level directly to temperature
+            # This ensures each level gets the exact temperature needed for the corresponding system prompt
+            # Note: Level 1 is handled directly in enhance_prompt method and should never reach here
+            # This is just a fallback in case it somehow does
+            if enhancement_level == 1:
+                # Level 1: No enhancement - return original prompt
+                logger.warning("Enhancement level 1 reached _enhance_with_xai, which should not happen")
+                return prompt
+            elif enhancement_level == 2:
+                temperature = 0.2  # Level 2: Minimal enhancements
+            elif enhancement_level == 3:
+                temperature = 0.3  # Level 3: Light enhancements
+            elif enhancement_level == 4:
+                temperature = 0.4  # Level 4: Moderate enhancements
+            elif enhancement_level == 5:
+                temperature = 0.5  # Level 5: Balanced enhancements
+            elif enhancement_level == 6:
+                temperature = 0.6  # Level 6: Notable enhancements
+            elif enhancement_level == 7:
+                temperature = 0.7  # Level 7: Significant enhancements
+            elif enhancement_level == 8:
+                temperature = 0.8  # Level 8: Extensive enhancements
+            elif enhancement_level == 9:
+                temperature = 0.9  # Level 9: Substantial enhancements
+            else:  # enhancement_level == 10
+                temperature = 1.0  # Level 10: Maximum enhancements
 
             # We don't use the system_prompt parameter directly because
             # the XAI provider generates its own system prompt based on temperature

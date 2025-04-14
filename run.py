@@ -8,6 +8,9 @@ import sys
 import os
 from pathlib import Path
 
+# Create logs directory if it doesn't exist
+os.makedirs('logs', exist_ok=True)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -18,9 +21,6 @@ logging.basicConfig(
     ]
 )
 
-# Create logs directory if it doesn't exist
-os.makedirs('logs', exist_ok=True)
-
 logger = logging.getLogger(__name__)
 
 def main():
@@ -28,11 +28,11 @@ def main():
     try:
         # Import the main module
         from src.main import main as app_main
-        
+
         # Run the application
         asyncio.run(app_main())
     except Exception as e:
         logger.error(f"Error running application: {e}", exc_info=True)
-        
+
 if __name__ == "__main__":
     main()

@@ -35,7 +35,7 @@ class EnhancementModal(Modal):
         self.enhancement_level = TextInput(
             label="Level (1-10)",
             placeholder="Enter a value between 1 and 10",
-            default="5",
+            default="1",
             required=True,
             min_length=1,
             max_length=2
@@ -59,7 +59,7 @@ class EnhancementModal(Modal):
                 # Ensure it's between 1 and 10
                 enhancement_level = max(1, min(10, enhancement_level))
             except ValueError:
-                enhancement_level = 5  # Default to 5 if invalid input
+                enhancement_level = 1  # Default to 1 if invalid input
 
             # Call the callback function if provided
             if self.on_submit_callback:

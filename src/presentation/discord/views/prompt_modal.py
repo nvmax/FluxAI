@@ -160,11 +160,19 @@ class PromptModal(Modal):
             # Defer response to give us time to process
             await interaction.response.defer(ephemeral=False)
 
-            # Send processing message
-            message = await interaction.followup.send(
-                f"🔄 Enhancing prompt (level {enhancement_level}/10) and starting generation...",
-                ephemeral=False
-            )
+            # Send processing message - different message based on enhancement level
+            if enhancement_level == 1:
+                # For level 1, don't mention enhancement since we're not enhancing
+                message = await interaction.followup.send(
+                    "🚀 Starting generation process...",
+                    ephemeral=False
+                )
+            else:
+                # For levels 2-10, mention the enhancement
+                message = await interaction.followup.send(
+                    f"🔄 Enhancing prompt (level {enhancement_level}/10) and starting generation...",
+                    ephemeral=False
+                )
 
             # Enhance the prompt with AI
             enhanced_prompt = await self.ai_service.enhance_prompt(original_prompt, enhancement_level)

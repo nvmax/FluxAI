@@ -75,11 +75,13 @@ class ImageCommands(commands.Cog):
             # Enhance the prompt with AI
             enhanced_prompt = await ai_service.enhance_prompt(original_prompt, enhancement_level)
 
-            # Send a private message with the enhanced prompt
-            await interaction.followup.send(
-                f"**Your prompt was enhanced:**\n\n**Original:** {original_prompt}\n\n**Enhanced:** {enhanced_prompt}",
-                ephemeral=True
-            )
+            # Only show enhancement message if the prompt was actually enhanced (level > 1)
+            if enhancement_level > 1:
+                # Send a private message with the enhanced prompt
+                await interaction.followup.send(
+                    f"**Your prompt was enhanced:**\n\n**Original:** {original_prompt}\n\n**Enhanced:** {enhanced_prompt}",
+                    ephemeral=True
+                )
 
             # Use default resolution if not provided
             if not resolution and self.bot.resolution_options:
